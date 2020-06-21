@@ -48,6 +48,7 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	Buttons(HWND, UINT, WPARAM, LPARAM);
+
 void osPietro(HWND hWnd, HDC &hdc, PAINTSTRUCT &ps, int vIn, int nr) {  //Wyswietlanie liczby osob na pietrze
 	hdc = BeginPaint(hWnd, &ps);
 	float kX;
@@ -104,15 +105,16 @@ void Tabela(HWND hWnd, HDC &hdc, PAINTSTRUCT &ps, RECT *drawArea, int vIn) //Wys
 	RectF        rect1F2(1300.0f, 40.0f, 200.0f, 50.0f);
 	RectF        tbla(1300.0f, 20.0f, 240.0f, 50.0f);
 	SolidBrush   solidBrush(Color(255, 0, 0, 255));
-	graphics.DrawString(L"Liczba osÛb w windzie:", -1, &font, rect1F, NULL, &solidBrush);
+	graphics.DrawString(L"Liczba os√≥b w windzie:", -1, &font, rect1F, NULL, &solidBrush);
 	graphics.DrawString(osoby, -1, &font, rectF, NULL, &solidBrush);
-	graphics.DrawString(L"Masa pasaøerÛw:", -1, &font, rect1F2, NULL, &solidBrush);
+	graphics.DrawString(L"Masa pasa≈ºer√≥w:", -1, &font, rect1F2, NULL, &solidBrush);
 	graphics.DrawString(Masa, -1, &font, rectF2, NULL, &solidBrush);
 
 	Pen pen(Color(255, 0, 0, 0));
 	graphics.DrawRectangle(&pen, tbla);
 	EndPaint(hWnd, &ps);
 }
+
 void zapiszPolecenia() {
 	//Calle
 	for (int i = 0; i < NextCall.size(); i++) {
@@ -130,7 +132,7 @@ void okreslPrzystanki() {
 		else Przystanek[i] = 0;
 	}
 }
-void jedzDoCalla(HWND hWnd) {		//Wybiera nastÍpne wezwanie i do niego jedzie
+void jedzDoCalla(HWND hWnd) {		//Wybiera nastƒôpne wezwanie i do niego jedzie
 	if (!NextCall.empty() && Calle[NextCall.front()] != 0) { //jezeli jest wezwanie i nie zostalo jeszcze wykonane
 		Go = Calle[NextCall.front()]; //jedz do wezwania
 		SetTimer(hWnd, idTimer = 39, 10, NULL);
@@ -140,7 +142,7 @@ void jedzDoCalla(HWND hWnd) {		//Wybiera nastÍpne wezwanie i do niego jedzie
 		jedzDoCalla(hWnd); //sprawdz nastepny
 	}
 }
-bool checkCalls() { //sprawdza czy sπ jakieú wezwania
+bool checkCalls() { //sprawdza czy sƒÖ jakie≈õ wezwania
 	bool check = 0;
 	for (int i = 0; i < 5; i++) {
 		if (Calle[i] != 0) check = 1;
@@ -159,7 +161,55 @@ void Ruch(HWND hWnd) { //Tu winda zaczyna decydowac co zrobic
 	}
 
 }
+void Jedz(HDC hdc, HWND hWnd, PAINTSTRUCT &ps, int a) {
+	if (a == Go || Przystanek[0] == a || Przystanek[1] == a || Przystanek[2] == a || Przystanek[3] == a || Przystanek[4] == a) { //jezeli dotrzemy do celu lub przystanku po drodze
+		KillTimer(hWnd, 31);
+		for (int i = 0; i < 5; i++) {
+			if (a == Przystanek[i]) {
+				Wait = 1;
+				for (int j = 0; j < wWindzie.size(); j++) //wysiadanie
+					if (wWindzie[j] == i) {
+						wWindzie.erase(wWindzie.begin() + j);
+						j--;
+					}
+				Wait = 0;
+				while (wWindzie.size() < 8) {			//wsiadanie
+					if (!Pietro[i].empty()) {
+						wWindzie.push_back(Pietro[i].front());
+						Pietro[i].pop();
+					}
+					else {
+						Ruch(hWnd);
+						break;
+					}
+				}
+				if (Pietro[i].empty()) { //zapisz ze pietro zostalo obsluzone
+					Przystanek[i] = 0;
+					Calle[i] = 0;
+					Cele[i] = 0;
+					for (int k = 0; k < NextCall.size(); k++) { //usuniecie z "kolejki" (wektora) wezwan na pietra ktore zostaly obsluzone
+						if (!NextCall.empty() && NextCall[k] == i) {
+							NextCall.erase(NextCall.begin() + k);
+							k--;
+						}
+						else if (NextCall.empty()) break;
+					}
+				}
+			}
+		}
+		if (a == Go && wWindzie.empty()) { //jezeli jestesmy u celu i winda jest pusta
+			Wait = 1;
+		}
+		poziom = a;
+		SetTimer(hWnd, idTimer = 1337, 10, NULL); //otwarcie drzwi
+		value = 0;
+		Tabela(hWnd, hdc, ps, &TabelaArea, wWindzie.size());	//wyswietlenie tabeli z osobami i masami
+		for (int i = 0; i < 5; i++) {							//wyswietlenie liczby osob na pietrach
+			osPietro(hWnd, hdc, ps, Pietro[i].size(), i);
+		}
 
+	}
+}
 void MyOnPaint(HDC hdc, HWND hWnd) //Wyswietlenie grafiki na starcie
 {
 	PAINTSTRUCT ps;
@@ -185,103 +235,12 @@ void Winda(HDC hdc, HWND hWnd) { //Wykonywanie polecen przez winde
 	if (Go < poziom) { //jezeli cel jest wyzej
 		graphics.DrawRectangle(&pen2, 702, poziom - value, 495, 200); //podnoszenie windy
 		int a = poziom - value;
-		if (a == Go || Przystanek[0] == a || Przystanek[1] == a || Przystanek[2] == a || Przystanek[3] == a || Przystanek[4] == a) { //jezeli dotrzemy do celu lub przystanku po drodze
-			KillTimer(hWnd, 31);
-			for (int i = 0; i < 5; i++) {
-				if (a == Przystanek[i]) {
-					Wait = 1;
-					for (int j = 0; j < wWindzie.size(); j++) //wysiadanie
-						if (wWindzie[j] == i) {
-							wWindzie.erase(wWindzie.begin() + j);
-							j--;
-						}
-					Wait = 0;
-					while (wWindzie.size() < 8) {			//wsiadanie
-						if (!Pietro[i].empty()) {
-							wWindzie.push_back(Pietro[i].front());
-							Pietro[i].pop();
-						}
-						else {
-							Ruch(hWnd);
-							break;
-						}
-					}
-					if (Pietro[i].empty()) { //zapisz ze pietro zostalo obsluzone
-						Przystanek[i] = 0;
-						Calle[i] = 0;
-						Cele[i] = 0;
-						for (int k = 0; k < NextCall.size(); k++) { //usuniecie z "kolejki" (wektora) wezwan na pietra ktore zostaly obsluzone
-							if (!NextCall.empty() && NextCall[k] == i) {
-								NextCall.erase(NextCall.begin()+k);
-								k--;
-							}
-							else if(NextCall.empty()) break;
-						}
-					}
-				}
-			}
-			if (a == Go && wWindzie.empty()) { //jezeli jestesmy u celu i winda jest pusta
-				Wait = 1;
-			}
-			poziom = a;
-			SetTimer(hWnd, idTimer = 1337, 10, NULL); //otwarcie drzwi
-			value = 0;
-			Tabela(hWnd, hdc, ps, &TabelaArea, wWindzie.size());	//wyswietlenie tabeli z osobami i masami
-			for (int i = 0; i < 5; i++) {							//wyswietlenie liczby osob na pietrach
-				osPietro(hWnd, hdc, ps, Pietro[i].size(), i);
-			}
-
-		}
+		Jedz(hdc, hWnd, ps, a);
 	}
 	else if(Go > poziom) { //jezeli cel jest nizej
 		graphics.DrawRectangle(&pen2, 702, poziom + value, 495, 200); //obnizanie windy
 		int a = poziom + value;
-		if (poziom == Go || Przystanek[0] == a || Przystanek[1] == a || Przystanek[2] == a || Przystanek[3] == a || Przystanek[4] == a) { //jezeli dotrzemy do celu lub przystanku po drodze
-			KillTimer(hWnd, 31); //przestan odswiezac obraz w windzie
-			for (int i = 0; i < 5; i++) {
-				if (a == Przystanek[i]) {
-					Wait = 1;
-					for (int j = 0; j < wWindzie.size(); j++) //wysiadanie
-						if (wWindzie[j] == i) {
-							wWindzie.erase(wWindzie.begin() + j);
-							j--;
-						}
-					Wait = 0;
-					while (wWindzie.size() < 8) { //wsiadanie
-						if (!Pietro[i].empty()) {
-							wWindzie.push_back(Pietro[i].front());
-							Pietro[i].pop();
-						}
-						else {
-							Ruch(hWnd);
-							break;
-						}
-					}
-					if (Pietro[i].empty()) { //zapisz ze pietro zostalo obsluzone
-						Przystanek[i] = 0;
-						Calle[i] = 0;
-						Cele[i] = 0;
-						for (int k = 0; k < NextCall.size(); k++) { //usuniecie z "kolejki" (wektora) wezwan na pietra ktore zostaly obsluzone
-							if (!NextCall.empty() && NextCall[k] == i) {
-								NextCall.erase(NextCall.begin() + k);
-								k--;
-							}
-							else if (NextCall.empty()) break;
-						}
-					}
-				}
-			}
-			if (a == Go && wWindzie.empty()) { //jezeli jestesmy u celu i winda jest pusta
-				Wait = 1;
-			}
-			poziom = a;
-			SetTimer(hWnd, idTimer = 1337, 10, NULL); //otwarcie drzwi
-			value = 0;
-			Tabela(hWnd, hdc, ps, &TabelaArea, wWindzie.size()); //wyswietlenie tabeli z osobami i masami
-			for (int i = 0; i < 5; i++) {						//wyswietlenie liczby osob na pietrach
-				osPietro(hWnd, hdc, ps, Pietro[i].size(), i);
-			}
-		}
+		Jedz(hdc, hWnd, ps, a);
 	}
 	else if (poziom == Go) { //jezeli jestesmy u celu(winda w bezruchu)
 		Wait = 1;
@@ -561,7 +520,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case 5:
 			Pietro[1].push(0);				//dodawanie osoby na pietrze Pietro[numer pietra].push(cel podrozy)
 			NextCall.emplace_back(1);		//wezwanie windy NextCall.emplace_back(numer pietra)
-			Wait = 0;						//w przypadku gdy winda stoi bezczynnie daje sygna≥ na rozruch
+			Wait = 0;						//w przypadku gdy winda stoi bezczynnie daje sygna≈Ç na rozruch
 			updatePietro(hWnd, hdc, ps);	//odswiez informacje o osobach na pietrach
 			break;
 		case 10:
